@@ -1,5 +1,8 @@
-from graph_handler import GraphHandler
+import csv
+
 from openpyxl import load_workbook
+
+from graph_handler import GraphHandler
 
 class Simulator:
 
@@ -10,8 +13,15 @@ class Simulator:
 		# build graph
 		# take in the algo
 		self.gh = GraphHandler()
+		self.orders = self._load_orders(orders_file)
 		self._build_graph(graph_file, clear_graph)
-		pass
+		print(f'the length of orders is {len(self.orders)}\n{self.orders[0]}')
+
+	def _load_orders(self, orders_file):
+		with open(f'{orders_file}.csv') as orders:
+			reader = csv.DictReader(orders)
+			return [dict(row) for row in reader]
+
 
 	def _finish(self):
 		self.gh.finish()
