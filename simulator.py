@@ -15,7 +15,6 @@ class Simulator:
 		self.gh = GraphHandler()
 		self.orders = self._load_orders(orders_file)
 		self._build_graph(graph_file, clear_graph)
-		print(f'the length of orders is {len(self.orders)}\n{self.orders[0]}')
 
 	def _load_orders(self, orders_file):
 		with open(f'{orders_file}.csv') as orders:
@@ -35,7 +34,7 @@ class Simulator:
 
 		for row in node_sheet.iter_rows(min_row=2, values_only=True):
 			attr = {att.split(':')[0]: att.split(':')[1] for att in row[2].replace(' ', '').split(',')} if row[2] else {}
-			attr.update({'name':row[0], 'label':row[1]})
+			attr.update({'name':f'"{row[0]}"', 'label':row[1]})
 			nodes.append(attr)
 
 		for row in link_sheet.iter_rows(min_row=2, values_only=True):
@@ -55,5 +54,5 @@ class Simulator:
 		pass
 
 	def run_simulation(self):
-		pass
-
+		print('simulation started')
+		print('simulation finished')
