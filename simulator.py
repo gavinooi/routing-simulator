@@ -33,15 +33,20 @@ class Simulator:
 		links = []
 
 		for row in node_sheet.iter_rows(min_row=2, values_only=True):
-			attr = {att.split(':')[0]: att.split(':')[1] for att in row[2].replace(' ', '').split(',')} if row[2] else {}
-			attr.update({'name':f'"{row[0]}"', 'label':row[1]})
+			attr = {'name': f'"{row[0]}"', 'label': row[1]}
+			if row[2]:
+				attr['attr'] = f', {row[2]}'
 			nodes.append(attr)
 
 		for row in link_sheet.iter_rows(min_row=2, values_only=True):
-			attr = {att.split(':')[0]: att.split(':')[1] for att in row[3].replace(' ', '').split(',')} if row[3] else {}
-			attr.update(
-				{'node1':row[0], 'node1_label':row[1], 'link':row[2], 'node2':row[4], 'node2_label':row[5]}
-			)
+			attr= {
+				'node1':f'"{row[0]}"',
+				'node1_label':row[1],
+				'link':row[2],
+				'node2':f'"{row[4]}"',
+				'node2_label':row[5],
+				'attr': row[3]
+			}
 			links.append(attr)
 
 		self.gh.build_graph(nodes, links, clear_graph)

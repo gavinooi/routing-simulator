@@ -1,3 +1,5 @@
+import re
+
 from neo4j import GraphDatabase
 
 class GraphHandler:
@@ -19,7 +21,7 @@ class GraphHandler:
 	def _finish(self):
 		self._driver.close()
 
-	def _clear_graph(self, tx):
+	def clear_graph(self, tx):
 		print('clearing graph...')
 		tx.run('MATCH (n) DETACH DELETE n;')
 		print('graph cleared!')
@@ -28,34 +30,30 @@ class GraphHandler:
 		pass
 
 	@staticmethod
-	def create_nodes_query(tx, nodes):
-		print('creating nodes...')
-		query = 'create '
+	def create_graph(tx, nodes, links):
+		print('creating graph...')
+		query = ''
 		for node in nodes:
 			label = node.pop('label')
-			new_node = f'(:{label}{{'
-			for key,val in node.items():
-				new_node += f'{key}:{val},'
-			new_node = new_node[:-1] + '}),\n'
-			query += new_node
-		res = tx.run(query.replace('”', '"')[:-2]).value()
-		print('nodes created!')
+			node_name = re.sub("[^a-zA-Z]+", "", node['name'])
+			node_query = f'merge ({node_name}:{label}{{name:{node["name"]}{node.get("attr","")}}})\n'
+			query += node_query.replace('”', '"').replace("’", "'")
+		for link in links:
+			node1_name = re.sub("[^a-zA-Z]+", "", link['node1'])
+			node2_name = re.sub("[^a-zA-Z]+", "", link['node2'])
+			new_link = f'merge ({node1_name})-[:{link["link"]}{{{link["attr"]}}}]->({node2_name})\n'
+			query += new_link
+		final_query = query.replace('”', '"').replace("’", "'")[:-1]
+		res = tx.run(final_query)
+		print('graph created!')
 		return res
-
-	@staticmethod
-	def create_links_query(tx, links):
-		query = 'create '
-		for node in links:
-			pass
-		return tx.run(query).value()
 
 	def build_graph(self, nodes, links, clear_graph):
 		with self._driver.session() as session:
 			if clear_graph:
-				session.write_transaction(self._clear_graph)
+				session.write_transaction(self.clear_graph)
 
-			result = session.write_transaction(self.create_nodes_query, nodes)
-			# link_query = self.create_links_query(links)
+			session.write_transaction(self.create_graph, nodes, links)
 
 	def run_algo(self):
 		pass
