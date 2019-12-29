@@ -11,9 +11,9 @@ class GraphHandler:
 
 	uri = "bolt://localhost:7687"
 	credentials = ("neo4j", "router123")
-	order_fields = []
+	order_fields = ['consignee_city', 'pickup_city']
 	algo = """
-MATCH (from: CITY {name: 'Hougang'}), (to: CITY {name: 'Manila'}) ,
+MATCH (from: CITY {name: $pickup_city}), (to: CITY {name: $consignee_city}) ,
 path = (from)-[:CONNECTED_TO*]->(to)
 WITH REDUCE(dist = 0, rel in rels(path) | dist + rel.cost) AS cost, path
 RETURN path, cost
@@ -72,9 +72,10 @@ LIMIT 1
 		final_query = match_query[:-1] + set_query[:-2]
 		tx.run(final_query)
 
-	def _find_path(self, tx):
+	def _find_path(self, tx, **kwargs):
 		path_result = {'path': None}
-		transaction = tx.run(self.algo)
+		print(f'the kwargs are {kwargs}')
+		transaction = tx.run(self.algo, **kwargs)
 		path_result['query'] = transaction.summary().statement
 		result = transaction.single()
 		if not result:
@@ -91,7 +92,6 @@ LIMIT 1
 		path = f'({path_obj.start_node["name"]})'
 		for link in links:
 			path += f'- {link.type} -> ({link.nodes[1]["name"]})'
-		print(path)
 		return path
 
 	def build_graph(self, nodes, links, clear_graph):
@@ -102,6 +102,9 @@ LIMIT 1
 			session.write_transaction(self._create_graph, nodes, links)
 
 	def run_algo(self, order_data, static):
+		order_kwargs = {}
+		for key in self.order_fields:
+			order_kwargs[key] = order_data[key]
 		with self._driver.session() as session:
 			if static:
 				result = {
@@ -110,11 +113,13 @@ LIMIT 1
 					'time_factor': 0.3,
 					'conditions': None
 				}
-				path_result = session.write_transaction(self._find_path)
+				path_result = session.write_transaction(self._find_path, **order_kwargs)
 				if path_result['path']:
 					result['path'] = self._format_path(path_result['path'])
 					session.write_transaction(self._update_count, path_result.pop('path').relationships)
 					result.update(path_result)
+				else:
+					result['path'] = 'No path found'
 				return [result]
 
 			else:

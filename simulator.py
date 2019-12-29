@@ -18,9 +18,15 @@ class Simulator:
 		self._build_graph(graph_file, clear_graph)
 
 	def _load_orders(self, orders_file):
+		orders_list = []
 		with open(f'{orders_file}.csv') as orders:
 			reader = csv.DictReader(orders)
-			return [dict(row) for row in reader]
+			for row in reader:
+				order_data = {}
+				for key,val in row.items():
+					order_data[key.lower().replace(' ', '_')] = val
+				orders_list.append(order_data)
+			return orders_list
 
 	def _finish(self):
 		self.gh.finish()
@@ -56,8 +62,10 @@ class Simulator:
 
 	def run_simulation(self):
 		print('simulation started')
-		result = self.gh.run_algo(self.orders[0], self.static)
-		self.results.extend(result)
+		for order in self.orders:
+			result = self.gh.run_algo(order, self.static)
+			self.results.extend(result)
+
 		self._output_result()
 		self._finish()
 		print('simulation finished')
