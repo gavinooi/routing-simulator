@@ -1,4 +1,5 @@
 import csv
+from datetime import datetime
 
 from openpyxl import load_workbook
 
@@ -7,12 +8,21 @@ from graph_handler import GraphHandler
 class Simulator:
 
 	results = []
+	output_file = ''
 
-	def __init__(self, graph_file, orders_file, algo='STATIC',output_file='result', clear_graph=True):
+	def __init__(self, graph_file, orders_file, output_file, algo='STATIC', clear_graph=True):
 		# clear the previous graph
 		# build graph
 		# take in the algo
 		self.static = algo == 'STATIC'
+		self.output_file = f'{output_file}-{datetime.now().strftime("%d/%m-%H:%M:%S")}'
+		print(
+			'###############################\n'
+			'### JANIO ROUTING SIMULATOR ###\n'
+			'###############################\n'
+			f'\nCONFIGURATIONS:\nGraph file:  {graph_file}.xlsx\nOrder file:  {orders_file}.csv\nOutput file: {self.output_file}.xlsx\n'
+			f'\nADDITIONAL CONFIGURATIONS\nAlgo: {algo}\nClear graph: {clear_graph}\n'
+		)
 		self.gh = GraphHandler()
 		self.orders = self._load_orders(orders_file)
 		self._build_graph(graph_file, clear_graph)
@@ -58,7 +68,8 @@ class Simulator:
 		self.gh.build_graph(nodes, links, clear_graph)
 
 	def _output_result(self, output_name=None):
-		pass
+		print(self.output_file)
+
 
 	def run_simulation(self):
 		print('simulation started')

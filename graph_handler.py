@@ -74,7 +74,6 @@ LIMIT 1
 
 	def _find_path(self, tx, **kwargs):
 		path_result = {'path': None}
-		print(f'the kwargs are {kwargs}')
 		transaction = tx.run(self.algo, **kwargs)
 		path_result['query'] = transaction.summary().statement
 		result = transaction.single()
