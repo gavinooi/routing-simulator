@@ -12,6 +12,7 @@ class Simulator:
 		# clear the previous graph
 		# build graph
 		# take in the algo
+		self.static = algo == 'STATIC'
 		self.gh = GraphHandler()
 		self.orders = self._load_orders(orders_file)
 		self._build_graph(graph_file, clear_graph)
@@ -20,7 +21,6 @@ class Simulator:
 		with open(f'{orders_file}.csv') as orders:
 			reader = csv.DictReader(orders)
 			return [dict(row) for row in reader]
-
 
 	def _finish(self):
 		self.gh.finish()
@@ -45,19 +45,19 @@ class Simulator:
 				'link':row[2],
 				'node2':f'"{row[4]}"',
 				'node2_label':row[5],
-				'attr': row[3]
+				'attr': row[3] + ', order_count:0'
 			}
 			links.append(attr)
 
 		self.gh.build_graph(nodes, links, clear_graph)
-
-
-	def _update_graph(self):
-		pass
 
 	def _output_result(self, output_name=None):
 		pass
 
 	def run_simulation(self):
 		print('simulation started')
+		result = self.gh.run_algo(self.orders[0], self.static)
+		self.results.extend(result)
+		self._output_result()
+		self._finish()
 		print('simulation finished')
