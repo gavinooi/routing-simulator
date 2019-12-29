@@ -68,7 +68,7 @@ class Simulator:
 		self.gh.build_graph(nodes, links, clear_graph)
 
 	def _output_result(self, output_name=None):
-		print(self.output_file)
+		pass
 
 
 	def run_simulation(self):
