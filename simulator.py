@@ -9,9 +9,9 @@ class Simulator:
 
 	results = []
 
-	def __init__(self, graph_file, orders_file, algo='STATIC',output_file=None, clear_graph=True):
+	def __init__(self, graph_file, orders_file, output_file, algo='STATIC', clear_graph=True):
 		self.static = algo == 'STATIC'
-		self.output_file = output_file if output_file else 'output.xlsx'
+		self.output_file = output_file
 		print(
 			'###############################\n'
 			'### JANIO ROUTING SIMULATOR ###\n'
@@ -74,7 +74,7 @@ class Simulator:
 			sheet = workbook.active
 			sheet.title = self.sheet_name
 		finally:
-			sheet.append(('order', 'start', 'end', 'cost_factor'))
+			sheet.append(list(self.results[0].keys()))
 			for result in self.results:
 				sheet.append(list(result.values()))
 

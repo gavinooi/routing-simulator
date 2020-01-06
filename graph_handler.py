@@ -163,8 +163,8 @@ LIMIT 1
 
 				result = {
 					'tracking_no': order_data.get('tracking_no'),
-					'price_factor': 0.7,
-					'time_factor': 0.3,
+					'price_factor': 0,
+					'time_factor': 0,
 					'conditions': None
 				}
 				path_result = self._find_path(tx, **order_kwargs)
