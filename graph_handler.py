@@ -6,7 +6,6 @@ from neo4j import GraphDatabase
 def time_and_rollback(func):
 
 	def wrapper_func(*args, **kwargs):
-		tx = args[1]
 		start = time.time()
 		res = func(*args, **kwargs)
 		end = time.time()
@@ -30,8 +29,8 @@ class GraphHandler:
 		'pickup_city': 'from_name'
 	}
 
-	algo = """
-MATCH (from:from_label {name:$from_name}), (to:CITY {name:$to_name}) ,
+	algo = \
+"""MATCH (from:from_label {name:$from_name}), (to:CITY {name:$to_name}) ,
 path = (from)-[:CONNECTED_TO*]->(to)
 WITH REDUCE(dist = 0, rel in rels(path) | dist + rel.cost) AS cost, path
 RETURN path, cost
@@ -136,8 +135,8 @@ LIMIT 1
 		tx = session.begin_transaction()
 		result = {
 			'tracking_no': order_data.get('tracking_no'),
-			'price_factor': 0.7,
-			'time_factor': 0.3,
+			'price_factor': 0,
+			'time_factor': 0,
 			'conditions': None
 		}
 		path_result = self._find_path(tx, **order_kwargs)
@@ -177,6 +176,8 @@ LIMIT 1
 				else:
 					result['path'] = 'No path found'
 					total_result.append(result)
+					tx.rollback()
 					return total_result
 
+			tx.rollback()
 			return total_result
