@@ -25,13 +25,13 @@ class GraphHandler:
 	uri = "bolt://localhost:7687"
 	credentials = ("neo4j", "router123")
 	order_fields = ['consignee_city', 'pickup_city']
-	# conditions = {
-	# 	'node_down':
-	# 	'delay': 4h,
-	# 	'latency': 5m
-	# }
+	query_field_mapping = {
+		'consignee_city': 'to_name',
+		'pickup_city': 'from_name'
+	}
+
 	algo = """
-MATCH (from: CITY {name: $pickup_city}), (to: CITY {name: $consignee_city}) ,
+MATCH (from:from_label {name:$from_name}), (to:CITY {name:$to_name}) ,
 path = (from)-[:CONNECTED_TO*]->(to)
 WITH REDUCE(dist = 0, rel in rels(path) | dist + rel.cost) AS cost, path
 RETURN path, cost
@@ -99,7 +99,8 @@ LIMIT 1
 	@time_and_rollback
 	def _find_path(self, tx, **kwargs):
 		path_result = {'path': None}
-		transaction = tx.run(self.algo, **kwargs)
+		st = self.algo.replace('from_label', kwargs.pop('from_label'))
+		transaction = tx.run(st, **kwargs)
 		path_result['query'] = transaction.summary().statement
 		result = transaction.single()
 		if not result:
@@ -126,31 +127,56 @@ LIMIT 1
 			session.write_transaction(self._create_graph, nodes, links)
 
 	def run_algo(self, order_data, static):
-		order_kwargs = {}
+		order_kwargs = {'from_label': 'CITY'}
+		total_result = []
 		for key in self.order_fields:
-			order_kwargs[key] = order_data[key]
+			query_key = self.query_field_mapping.get(key, key)
+			order_kwargs[query_key] = order_data[key]
 		session = self._driver.session()
 		tx = session.begin_transaction()
+		result = {
+			'tracking_no': order_data.get('tracking_no'),
+			'price_factor': 0.7,
+			'time_factor': 0.3,
+			'conditions': None
+		}
+		path_result = self._find_path(tx, **order_kwargs)
+		path = path_result.pop('path')
+		if path:
+			result['path'] = self._format_path(path)
+			result.update(path_result)
+		else:
+			result['path'] = 'No path found'
+			return [result]
+
 		if static:
-			result = {
-				'tracking_no': order_data.get('tracking_no'),
-				'price_factor': 0.7,
-				'time_factor': 0.3,
-				'conditions': None
-			}
-			path_result = self._find_path(tx, **order_kwargs)
-			if path_result['path']:
-				result['path'] = self._format_path(path_result.pop('path'))
-				# self._update_count(tx, path_result.pop('path').relationships)
-				result.update(path_result)
-			else:
-				result['path'] = 'No path found'
 			tx.rollback()
 			return [result]
 		else:
-			'''
-			while current node != endnode
-				find the path
-				update the state of the first node, update the new start point with the other conditions
-				format the path data and add it to list of results
-			return array of results'''
+			total_result.append(result)
+			current_node = path.nodes[1]
+			end_node = path.end_node
+
+			while current_node['name'] != end_node['name']:
+				order_kwargs['from_label'] = list(current_node.labels)[0]
+				order_kwargs['from_name'] = current_node['name']
+
+				result = {
+					'tracking_no': order_data.get('tracking_no'),
+					'price_factor': 0.7,
+					'time_factor': 0.3,
+					'conditions': None
+				}
+				path_result = self._find_path(tx, **order_kwargs)
+				path = path_result.pop('path')
+				if path:
+					result['path'] = self._format_path(path)
+					result.update(path_result)
+					total_result.append(result)
+					current_node = path.nodes[1]
+				else:
+					result['path'] = 'No path found'
+					total_result.append(result)
+					return total_result
+
+			return total_result
