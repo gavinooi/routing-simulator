@@ -86,6 +86,9 @@ class Simulator:
 				else:
 					orders[cell.value] = [cell.coordinate]
 
+			for k, v in orders.items():
+				if len(v) > 1:
+					sheet.merge_cells(f'{v[0]}:{v[-1]}')
 			workbook.save(self.output_file)
 
 	def run_simulation(self):
