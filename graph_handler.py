@@ -1,6 +1,19 @@
 import re
+import time
 
 from neo4j import GraphDatabase
+
+def time_and_rollback(func):
+
+	def wrapper_func(*args, **kwargs):
+		tx = args[1]
+		start = time.time()
+		res = func(*args, **kwargs)
+		end = time.time()
+		res['time'] = end - start
+		return res
+
+	return wrapper_func
 
 class GraphHandler:
 	"""
@@ -12,6 +25,11 @@ class GraphHandler:
 	uri = "bolt://localhost:7687"
 	credentials = ("neo4j", "router123")
 	order_fields = ['consignee_city', 'pickup_city']
+	# conditions = {
+	# 	'node_down':
+	# 	'delay': 4h,
+	# 	'latency': 5m
+	# }
 	algo = """
 MATCH (from: CITY {name: $pickup_city}), (to: CITY {name: $consignee_city}) ,
 path = (from)-[:CONNECTED_TO*]->(to)
@@ -72,6 +90,13 @@ LIMIT 1
 		final_query = match_query[:-1] + set_query[:-2]
 		tx.run(final_query)
 
+	def _pre_find_path(self):
+		pass
+
+	def _post_find_path(self):
+		pass
+
+	@time_and_rollback
 	def _find_path(self, tx, **kwargs):
 		path_result = {'path': None}
 		transaction = tx.run(self.algo, **kwargs)
@@ -114,8 +139,8 @@ LIMIT 1
 				}
 				path_result = session.write_transaction(self._find_path, **order_kwargs)
 				if path_result['path']:
-					result['path'] = self._format_path(path_result['path'])
-					session.write_transaction(self._update_count, path_result.pop('path').relationships)
+					result['path'] = self._format_path(path_result.pop('path'))
+					# session.write_transaction(self._update_count, path_result.pop('path').relationships)
 					result.update(path_result)
 				else:
 					result['path'] = 'No path found'
