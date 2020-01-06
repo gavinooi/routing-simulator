@@ -1,28 +1,25 @@
 import csv
 from datetime import datetime
 
-from openpyxl import load_workbook
+from openpyxl import load_workbook, Workbook
 
 from graph_handler import GraphHandler
 
 class Simulator:
 
 	results = []
-	output_file = ''
+	output_file = 'output.xlsx'
 
-	def __init__(self, graph_file, orders_file, output_file, algo='STATIC', clear_graph=True):
-		# clear the previous graph
-		# build graph
-		# take in the algo
+	def __init__(self, graph_file, orders_file, algo='STATIC', clear_graph=True):
 		self.static = algo == 'STATIC'
-		self.output_file = f'{output_file}-{datetime.now().strftime("%d/%m-%H:%M:%S")}'
 		print(
 			'###############################\n'
 			'### JANIO ROUTING SIMULATOR ###\n'
 			'###############################\n'
-			f'\nCONFIGURATIONS:\nGraph file:  {graph_file}.xlsx\nOrder file:  {orders_file}.csv\nOutput file: {self.output_file}.xlsx\n'
-			f'\nADDITIONAL CONFIGURATIONS\nAlgo: {algo}\nClear graph: {clear_graph}\n'
+			f'\nCONFIGURATIONS:\nGraph file:  {graph_file}\nOrder file:  {orders_file}.csv\nOutput file: {self.output_file}.xlsx\n'
+			f'\nADDITIONAL CONFIGURATIONS\nAlgo: {algo}\nClear graph: {clear_graph}'
 		)
+		self.sheet_name = datetime.now().strftime("%d-%m T%H-%M-%S")
 		self.gh = GraphHandler()
 		self.orders = self._load_orders(orders_file)
 		self._build_graph(graph_file, clear_graph)
@@ -36,7 +33,8 @@ class Simulator:
 				for key,val in row.items():
 					order_data[key.lower().replace(' ', '_')] = val
 				orders_list.append(order_data)
-			return orders_list
+		print(f'ORDERS LOADED: {len(orders_list)}\n')
+		return orders_list
 
 	def _finish(self):
 		self.gh.finish()
@@ -67,16 +65,36 @@ class Simulator:
 
 		self.gh.build_graph(nodes, links, clear_graph)
 
-	def _output_result(self, output_name=None):
-		pass
+	def _output_result(self):
+		try:
+			workbook = load_workbook(self.output_file)
+			sheet = workbook.create_sheet(self.sheet_name)
+		except:
+			workbook = Workbook()
+			sheet = workbook.active
+			sheet.title = self.sheet_name
+		finally:
+			sheet.append(('order', 'start', 'end', 'cost_factor'))
+			for result in self.results:
+				sheet.append(list(result.values()))
 
+			orders = {}
+			for row in sheet.iter_rows(min_row=1,max_col=1):
+				cell = row[0]
+				if orders.get(cell.value):
+					orders[cell.value].append(cell.coordinate)
+				else:
+					orders[cell.value] = [cell.coordinate]
+
+			workbook.save(self.output_file)
 
 	def run_simulation(self):
-		print('simulation started')
-		for order in self.orders:
+		print('SIMULATION STARTED')
+		for count, order in enumerate(self.orders):
+			print(f'RUNNING ORDER {count+1}/{len(self.orders)}', end='\r')
 			result = self.gh.run_algo(order, self.static)
 			self.results.extend(result)
 
 		self._output_result()
 		self._finish()
-		print('simulation finished')
+		print('\nSIMULATION FINISHED')
