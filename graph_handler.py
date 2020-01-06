@@ -129,27 +129,28 @@ LIMIT 1
 		order_kwargs = {}
 		for key in self.order_fields:
 			order_kwargs[key] = order_data[key]
-		with self._driver.session() as session:
-			if static:
-				result = {
-					'tracking_no': order_data.get('tracking_no'),
-					'price_factor': 0.7,
-					'time_factor': 0.3,
-					'conditions': None
-				}
-				path_result = session.write_transaction(self._find_path, **order_kwargs)
-				if path_result['path']:
-					result['path'] = self._format_path(path_result.pop('path'))
-					# session.write_transaction(self._update_count, path_result.pop('path').relationships)
-					result.update(path_result)
-				else:
-					result['path'] = 'No path found'
-				return [result]
-
+		session = self._driver.session()
+		tx = session.begin_transaction()
+		if static:
+			result = {
+				'tracking_no': order_data.get('tracking_no'),
+				'price_factor': 0.7,
+				'time_factor': 0.3,
+				'conditions': None
+			}
+			path_result = self._find_path(tx, **order_kwargs)
+			if path_result['path']:
+				result['path'] = self._format_path(path_result.pop('path'))
+				# self._update_count(tx, path_result.pop('path').relationships)
+				result.update(path_result)
 			else:
-				'''
-				while current node != endnode
-					find the path
-					update the state of the first node, update the new start point with the other conditions
-					format the path data and add it to list of results
-				return array of results'''
+				result['path'] = 'No path found'
+			tx.rollback()
+			return [result]
+		else:
+			'''
+			while current node != endnode
+				find the path
+				update the state of the first node, update the new start point with the other conditions
+				format the path data and add it to list of results
+			return array of results'''
