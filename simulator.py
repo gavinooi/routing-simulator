@@ -8,15 +8,15 @@ from graph_handler import GraphHandler
 class Simulator:
 
 	results = []
-	output_file = 'output.xlsx'
 
-	def __init__(self, graph_file, orders_file, algo='STATIC', clear_graph=True):
+	def __init__(self, graph_file, orders_file, algo='STATIC',output_file=None, clear_graph=True):
 		self.static = algo == 'STATIC'
+		self.output_file = output_file if output_file else 'output.xlsx'
 		print(
 			'###############################\n'
 			'### JANIO ROUTING SIMULATOR ###\n'
 			'###############################\n'
-			f'\nCONFIGURATIONS:\nGraph file:  {graph_file}\nOrder file:  {orders_file}.csv\nOutput file: {self.output_file}.xlsx\n'
+			f'\nCONFIGURATIONS:\nGraph File:  {graph_file}\nOrder File:  {orders_file}.csv\nOutput File: {self.output_file}\n'
 			f'\nADDITIONAL CONFIGURATIONS\nAlgo: {algo}\nClear graph: {clear_graph}'
 		)
 		self.sheet_name = datetime.now().strftime("%d-%m T%H-%M-%S")
@@ -92,7 +92,7 @@ class Simulator:
 			workbook.save(self.output_file)
 
 	def run_simulation(self):
-		print('SIMULATION STARTED')
+		print('\nSIMULATION STARTED')
 		for count, order in enumerate(self.orders):
 			print(f'RUNNING ORDER {count+1}/{len(self.orders)}', end='\r')
 			result = self.gh.run_algo(order, self.static)
