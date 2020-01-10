@@ -14,7 +14,7 @@ def time_and_rollback(func):
 
 	return wrapper_func
 
-class GraphHandler:
+class DBHandler:
 	"""
 	class to handle all neo4j queries
 	driver will be instantiated and closed here

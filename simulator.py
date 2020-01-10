@@ -3,7 +3,7 @@ from datetime import datetime
 
 from openpyxl import load_workbook, Workbook
 
-from graph_handler import GraphHandler
+from db_handler import DBHandler
 
 class Simulator:
 
@@ -20,7 +20,7 @@ class Simulator:
 			f'\nADDITIONAL CONFIGURATIONS\nAlgo: {algo}\nClear graph: {clear_graph}'
 		)
 		self.sheet_name = datetime.now().strftime("%d-%m T%H-%M-%S")
-		self.gh = GraphHandler()
+		self.handler = DBHandler()
 		self.orders = self._load_orders(orders_file)
 		self._build_graph(graph_file, clear_graph)
 
@@ -37,7 +37,7 @@ class Simulator:
 		return orders_list
 
 	def _finish(self):
-		self.gh.finish()
+		self.handler.finish()
 
 	def _build_graph(self, graph_file, clear_graph):
 		workbook = load_workbook(f'{graph_file}.xlsx')
@@ -63,7 +63,7 @@ class Simulator:
 			}
 			links.append(attr)
 
-		self.gh.build_graph(nodes, links, clear_graph)
+		self.handler.build_graph(nodes, links, clear_graph)
 
 	def _output_result(self):
 		try:
@@ -95,7 +95,7 @@ class Simulator:
 		print('\nSIMULATION STARTED')
 		for count, order in enumerate(self.orders):
 			print(f'RUNNING ORDER {count+1}/{len(self.orders)}', end='\r')
-			result = self.gh.run_algo(order, self.static)
+			result = self.handler.run_algo(order, self.static)
 			self.results.extend(result)
 
 		self._output_result()
