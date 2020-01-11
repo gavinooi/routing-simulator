@@ -8,6 +8,7 @@ from db_handler import DBHandler
 class Simulator:
 
 	results = []
+	timeline = []
 
 	def __init__(self, graph_file, orders_file, output_file, algo='STATIC', clear_graph=True):
 		self.static = algo == 'STATIC'
@@ -91,13 +92,96 @@ class Simulator:
 					sheet.merge_cells(f'{v[0]}:{v[-1]}')
 			workbook.save(self.output_file)
 
+	def add_create_order_event(self, order):
+		# add the create order event into the timeline
+		self.timeline.append(order)
+
+	def create_order(self):
+		# load the sub graph
+		# find the path
+		# add the arrive & leave events to the timeline
+		pass
+
+	def increment_order_count(self):
+		# add order to a timed link
+		# happens when a new path is generated (order creation, path continuation & updating order count)
+		pass
+
+	def decrement_order_count(self):
+		# remove order from a timed link
+		# happens when an order is picked up or when updating order counts
+		pass
+
+	def update_order_count(self):
+		# occurs when the order is first created, when it arrives at
+		pass
+
+	def reach_node(self):
+		# find the next n+2 path if it is janio or not
+		# reroute if thr is a cancellation api
+		pass
+
+	# CAN REMOVE
+	def leave_node(self):
+		# when the order is picked up
+		# decrement the order count
+		pass
+
+	def add_event(self, event_type, is_static):
+		'''
+		adds an event into the timeline, in a sorted order
+		event = {
+			datetime: time the event occurs
+			type: [create, arrive, leave, expire]
+			desc: description of the event (with some order specific data like tracking no)
+			kwargs: dictionary of keyword args to be passed into the pre stage
+		}
+		:return:
+		'''
+		event_actions = {
+			'create': {
+				'pre': None,
+				'during': self.create_order,
+				'post': self.increment_order_count
+			},
+			'arrive': {
+				'pre': self.insert_noise,
+				'during': self.reach_node,
+				'post': self.increment_order_count
+			},
+			'leave': {
+				'pre': None,
+				'during': self.decrement_order_count,
+				'post': None
+			},
+			'expire': {
+				'pre': None,
+				'during': self.expire_link,
+				'post': None
+			},
+		}
+
+	def consume_event(self, event):
+		'''
+		runs the pre, during & post stage methods, logs event to the timeline
+		:return:
+		'''
+		print(event['created_on'])
+
+	def run_timeline(self):
+		print(len(self.timeline))
+		while len(self.timeline) != 0:
+			self.consume_event(self.timeline.pop(0))
+
+	# CAN REMOVE
 	def run_simulation(self):
-		print('\nSIMULATION STARTED')
+		print('\nBUILDING TIMELINE')
 		for count, order in enumerate(self.orders):
 			print(f'RUNNING ORDER {count+1}/{len(self.orders)}', end='\r')
-			result = self.handler.run_algo(order, self.static)
-			self.results.extend(result)
+			self.add_create_order_event(order)
 
-		self._output_result()
+		self.run_timeline()
+
+		# self._output_result()
 		self._finish()
 		print('\nSIMULATION FINISHED')
