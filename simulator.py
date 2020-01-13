@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+import bisect
 
 from openpyxl import load_workbook, Workbook
 
@@ -24,6 +25,8 @@ class Simulator:
 		self.handler = DBHandler()
 		self.orders = self._load_orders(orders_file)
 		self._build_graph(graph_file, clear_graph)
+
+	### SETUP ###
 
 	def _load_orders(self, orders_file):
 		orders_list = []
@@ -92,42 +95,9 @@ class Simulator:
 					sheet.merge_cells(f'{v[0]}:{v[-1]}')
 			workbook.save(self.output_file)
 
-	def add_create_order_event(self, order):
-		# add the create order event into the timeline
-		self.timeline.append(order)
+	### TIMELINE ###
 
-	def create_order(self):
-		# load the sub graph
-		# find the path
-		# add the arrive & leave events to the timeline
-		pass
-
-	def increment_order_count(self):
-		# add order to a timed link
-		# happens when a new path is generated (order creation, path continuation & updating order count)
-		pass
-
-	def decrement_order_count(self):
-		# remove order from a timed link
-		# happens when an order is picked up or when updating order counts
-		pass
-
-	def update_order_count(self):
-		# occurs when the order is first created, when it arrives at
-		pass
-
-	def reach_node(self):
-		# find the next n+2 path if it is janio or not
-		# reroute if thr is a cancellation api
-		pass
-
-	# CAN REMOVE
-	def leave_node(self):
-		# when the order is picked up
-		# decrement the order count
-		pass
-
-	def add_event(self, event_type, is_static):
+	def add_event(self, event):
 		'''
 		adds an event into the timeline, in a sorted order
 		event = {
@@ -160,20 +130,80 @@ class Simulator:
 				'post': None
 			},
 		}
+		self.timeline.append(event)
+
+	def add_create_order_event(self, order):
+		# add the create order event into the timeline
+		tracking_no = order['tracking_no']
+		created_on = order['created_on']
+		origin = order['origin_zone']
+		destination = order['destination_zone']
+		kwargs = {
+			'tracking_no': tracking_no,
+			'created_on': created_on,
+			'agent_app': order['agent_application_name'],
+			'payment_type': order['payment_type'],
+			'origin_zone': origin,
+			'destination_zone': destination
+		}
+		event = {
+			'datetime': created_on,
+			'event_type': 'create',
+			'desc': f'Create order: {tracking_no}, {origin} --> {destination}',
+			'actions': [self.create_order, self.increment_order_count],
+			'kwargs': kwargs
+		}
+
+		self.add_event(event)
 
 	def consume_event(self, event):
 		'''
 		runs the pre, during & post stage methods, logs event to the timeline
 		:return:
 		'''
-		print(event['created_on'])
+		kwargs = event['kwargs']
+		for action in event['actions']:
+			kwargs = action(**kwargs)
 
 	def run_timeline(self):
 		print(len(self.timeline))
 		while len(self.timeline) != 0:
 			self.consume_event(self.timeline.pop(0))
 
-	# CAN REMOVE
+	### ACTIONS ###
+
+	def insert_noise(self):
+		pass
+
+	def expire_link(self):
+		pass
+
+	def create_order(self, **kwargs):
+		# load the sub graph
+		# find the path
+		# add the arrive & leave events to the timeline
+		print(f'\norder created\n{kwargs}')
+		return {'some shit': 'this is the result'}
+
+	def increment_order_count(self, **kwargs):
+		# add order to a timed link
+		# happens when a new path is generated (order creation, path continuation & updating order count)
+		print(f'increment order\n{kwargs}')
+
+	def decrement_order_count(self, **kwargs):
+		# remove order from a timed link
+		# happens when an order is picked up or when updating order counts
+		pass
+
+	def update_order_count(self, **kwargs):
+		# occurs when the order is first created, when it arrives at
+		pass
+
+	def reach_node(self, **kwargs):
+		# find the next n+2 path if it is janio or not
+		# reroute if thr is a cancellation api
+		pass
+
 	def run_simulation(self):
 		print('\nBUILDING TIMELINE')
 		for count, order in enumerate(self.orders):
