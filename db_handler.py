@@ -95,6 +95,17 @@ LIMIT 1
 	def _post_find_path(self):
 		pass
 
+	def _filter_graph(self, tx, order_details):
+		query = \
+			f'MATCH path = (:COVERAGEAREA {{name: "{order_details["origin_zone"]}"}}) -[road:CONNECTED_TO*]'\
+			f'- (:COVERAGEAREA {{name: "{order_details["destination_zone"]}"}})'\
+			f'WHERE ALL (r IN road WHERE r.paymentType = "{order_details["payment_type"]}" and not "{order_details["agent_app"]}" in r.restrictedMerchants)'\
+			'RETURN path'
+
+		result = tx.run(query)
+		g = result.graph()
+		return g
+
 	@time_and_rollback
 	def _find_path(self, tx, **kwargs):
 		path_result = {'path': None}
@@ -124,6 +135,11 @@ LIMIT 1
 				session.write_transaction(self._clear_graph)
 
 			session.write_transaction(self._create_graph, nodes, links)
+
+	def filter_graph(self, order_details):
+		with self._driver.session() as session:
+			res = session.write_transaction(self._filter_graph, order_details)
+			return res
 
 	def run_algo(self, order_data, static):
 		order_kwargs = {'from_label': 'CITY'}
