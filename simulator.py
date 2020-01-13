@@ -2,8 +2,11 @@ import csv
 from datetime import datetime
 import bisect
 
+import networkx as nx
+
 from openpyxl import load_workbook, Workbook
 
+from graph import find_path
 from db_handler import DBHandler
 
 class Simulator:
@@ -180,9 +183,19 @@ class Simulator:
 
 	def create_order(self, **kwargs):
 		# load the sub graph
+		sub_graph = self.handler.filter_graph(kwargs)
+		g = nx.MultiDiGraph()
+		for r in sub_graph.relationships:
+			from_node = r.nodes[0]
+			g.add_node(from_node['name'], **from_node._properties)
+			to_node = r.nodes[1]
+			g.add_node(to_node['name'], **to_node._properties)
+			g.add_edge(from_node['name'], to_node['name'], attr_dict=r._properties)
+
 		# find the path
+		path = find_path(g)
+
 		# add the arrive & leave events to the timeline
-		print(f'\norder created\n{kwargs}')
 		return {'some shit': 'this is the result'}
 
 	def increment_order_count(self, **kwargs):
