@@ -61,13 +61,13 @@ LIMIT 1
 			label = node.pop('label')
 			node_name = re.sub("[^a-zA-Z]+", "", node['name'])
 			node_query = f'merge ({node_name}:{label}{{name:{node["name"]}{node.get("attr","")}}})\n'
-			query += node_query.replace('”', '"').replace("’", "'")
+			query += node_query.replace('”', '"').replace("’", "'").replace('‘', "'")
 		for link in links:
 			node1_name = re.sub("[^a-zA-Z]+", "", link['node1'])
 			node2_name = re.sub("[^a-zA-Z]+", "", link['node2'])
 			new_link = f'merge ({node1_name})-[:{link["link"]}{{{link["attr"]}}}]->({node2_name})\n'
 			query += new_link
-		final_query = query.replace('”', '"').replace("’", "'")[:-1]
+		final_query = query.replace('”', '"').replace("’", "'").replace('‘', "'")[:-1]
 		res = tx.run(final_query)
 		print('graph created!')
 		return res
