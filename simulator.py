@@ -174,6 +174,19 @@ class Simulator:
 		# load the sub graph
 		tracking_no = kwargs['tracking_no']
 		sub_graph = self.handler.filter_graph(kwargs)
+		if not sub_graph:
+			self.results.append(
+				{
+					'tracking_no': tracking_no,
+					'price_factor': 0,
+					'time_factor': 0,
+					'conditions': None,
+					'path': 'No path found.',
+					'cost': 0
+				}
+			)
+			return {'links': [], 'tracking_no': tracking_no}
+
 		g = nx.MultiDiGraph()
 		for r in sub_graph.relationships:
 			from_node = r.nodes[0]
@@ -188,15 +201,16 @@ class Simulator:
 		for link in links:
 			path = f'({link[0][0]}) > [{link[2]["via"]}] > ' + path
 
-		result = {
-			'tracking_no': tracking_no,
-			'price_factor': 0,
-			'time_factor': 0,
-			'conditions': None,
-			'path': path,
-			'cost': cost
-		}
-		self.results.append(result)
+		self.results.append(
+			{
+				'tracking_no': tracking_no,
+				'price_factor': 0,
+				'time_factor': 0,
+				'conditions': None,
+				'path': path,
+				'cost': cost
+			}
+		)
 		for link in links:
 			kwargs = {
 				'link': link,

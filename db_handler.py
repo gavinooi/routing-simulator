@@ -107,8 +107,11 @@ LIMIT 1
 			'RETURN path'
 
 		result = tx.run(query)
-		g = result.graph()
-		return g
+		if not result.data():
+			return None
+		else:
+			g = result.graph()
+			return g
 
 	@staticmethod
 	def _decrement_order(tx, tracking_no, link):
