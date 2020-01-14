@@ -43,7 +43,8 @@ def find_path(g, order_details):
 			'prev_node': None,
 			'link_id': None,
 			'start_date': start_time,
-			'end_date': start_time
+			'end_date': start_time,
+			'label': 'COVERAGEAREA'
 		}
 	}
 
@@ -67,7 +68,8 @@ def find_path(g, order_details):
 					'prev_node': current_node,
 					'link_id': link_id,
 					'start_date': links[link_id]['attr_dict']['startDate'],
-					'end_date': links[link_id]['attr_dict']['endDate']
+					'end_date': links[link_id]['attr_dict']['endDate'],
+					'label': g.nodes[nbr]['label']
 				}
 				# update value if not calculated before or if new f value is lower
 				if not table.get(nbr) or (table.get(nbr) and table[nbr]['f_value'] > f):
@@ -90,9 +92,8 @@ def find_path(g, order_details):
 		link_id = table[current_node]['link_id']
 		link_data = g[prev_node][current_node][link_id]['attr_dict']
 		path.append(current_node)
-		links.append((prev_node, current_node, link_data))
+		links.append(({prev_node: table[prev_node]['label']}, {current_node: table[current_node]['label']}, link_data))
 		current_node = prev_node
 
 	return path, table[end_node]['cost_to_start'], links
-
 

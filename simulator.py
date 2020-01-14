@@ -100,7 +100,7 @@ class Simulator:
 
 	### TIMELINE ###
 
-	def add_event(self, event):
+	def add_event(self, new_event):
 		'''
 		adds an event into the timeline, in a sorted order
 		event = {
@@ -111,29 +111,18 @@ class Simulator:
 		}
 		:return:
 		'''
-		event_actions = {
-			'create': {
-				'pre': None,
-				'during': self.create_order,
-				'post': self.increment_order_count
-			},
-			'arrive': {
-				'pre': self.insert_noise,
-				'during': self.reach_node,
-				'post': self.increment_order_count
-			},
-			'leave': {
-				'pre': None,
-				'during': self.decrement_order_count,
-				'post': None
-			},
-			'expire': {
-				'pre': None,
-				'during': self.expire_link,
-				'post': None
-			},
-		}
-		self.timeline.append(event)
+
+		if len(self.timeline) == 0:
+			self.timeline.append(new_event)
+		else:
+			i = next(
+				(i for i,event in enumerate(self.timeline) if new_event['datetime'] <= event['datetime']),
+				False
+			)
+			if i:
+				self.timeline.insert(i, new_event)
+			else:
+				self.timeline.insert(0, new_event)
 
 	def add_create_order_event(self, order):
 		# add the create order event into the timeline
@@ -164,12 +153,12 @@ class Simulator:
 		runs the pre, during & post stage methods, logs event to the timeline
 		:return:
 		'''
+		print(f'\nRun event: {event["desc"]}\n{str(event["datetime"])}')
 		kwargs = event['kwargs']
 		for action in event['actions']:
 			kwargs = action(**kwargs)
 
 	def run_timeline(self):
-		print(len(self.timeline))
 		while len(self.timeline) != 0:
 			self.consume_event(self.timeline.pop(0))
 
@@ -187,15 +176,13 @@ class Simulator:
 		g = nx.MultiDiGraph()
 		for r in sub_graph.relationships:
 			from_node = r.nodes[0]
-			g.add_node(from_node['name'], **from_node._properties)
+			g.add_node(from_node['name'], label=list(from_node.labels)[0], **from_node._properties)
 			to_node = r.nodes[1]
-			g.add_node(to_node['name'], **to_node._properties)
+			g.add_node(to_node['name'], label=list(to_node.labels)[0], **to_node._properties)
 			g.add_edge(from_node['name'], to_node['name'], attr_dict=r._properties)
 
 		# find the path
-		path,cost, links = find_path(g, kwargs)
-		print(links)
-		self.handler.increment_links(kwargs['tracking_no'], links)
+		path, cost, links = find_path(g, kwargs)
 		result = {
 			'tracking_no': kwargs.get('tracking_no'),
 			'price_factor': 0,
@@ -204,15 +191,44 @@ class Simulator:
 			'path': path,
 			'cost': cost
 		}
+		for link in links:
+			kwags = {
+				'from_node': (list(link[0].items())),
+				'to_node': (list(link[1].items())),
+				'links': link[2]
+			}
+			from_node = list(link[0].keys())[0]
+			to_node = list(link[1].keys())[0]
+			leave_time = link[2]['startDate']
+			leave_event = {
+				'datetime': leave_time,
+				'event_type': 'leave',
+				'desc': f'Leave node: {from_node}',
+				'actions': [self.decrement_order_count],
+				'kwargs': kwargs
+			}
+			self.add_event(leave_event)
 
+			arrive_time = link[2]['endDate']
+			if self.static:
+				actions = [self.insert_noise, self.reach_node, self.increment_order_count]
+			else: # if is static nothing happens when the order reaches the node
+				actions = []
+			arrive_event = {
+				'datetime': arrive_time,
+				'event_type': 'arrive',
+				'desc': f'Arrive node: {to_node}',
+				'actions': actions,
+				'kwargs': kwargs
+			}
+			self.add_event(arrive_event)
 
-		# add the arrive & leave events to the timeline
-		return {'some shit': 'this is the result'}
+		return {'links': links, 'tracking_no': kwargs['tracking_no']}
 
 	def increment_order_count(self, **kwargs):
 		# add order to a timed link
 		# happens when a new path is generated (order creation, path continuation & updating order count)
-		print(f'increment order\n{kwargs}')
+		print(f'increment order')
 
 	def decrement_order_count(self, **kwargs):
 		# remove order from a timed link
