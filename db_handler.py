@@ -62,9 +62,6 @@ LIMIT 1
 		tx.run('MATCH (n) DETACH DELETE n;')
 		print('graph cleared!')
 
-	def _update_state(self, session):
-		pass
-
 	@staticmethod
 	def _create_graph(tx, nodes, links):
 		print('creating graph...')
@@ -141,29 +138,7 @@ LIMIT 1
 
 		tx.run(query)
 
-
-	@time_and_rollback
-	def _find_path(self, tx, **kwargs):
-		path_result = {'path': None}
-		st = self.algo.replace('from_label', kwargs.pop('from_label'))
-		transaction = tx.run(st, **kwargs)
-		path_result['query'] = transaction.summary().statement
-		result = transaction.single()
-		if not result:
-			return path_result
-		else:
-			result = result.data()
-			path_result['path'] = result['path']
-			path_result['cost'] = result['cost']
-			return path_result
-
-	@staticmethod
-	def _format_path(path_obj):
-		links = path_obj.relationships
-		path = f'({path_obj.start_node["name"]})'
-		for link in links:
-			path += f'- {link.type} -> ({link.nodes[1]["name"]})'
-		return path
+	### PUBLIC METHODS ###
 
 	def build_graph(self, nodes, links, clear_graph):
 		with self._driver.session() as session:
@@ -185,60 +160,3 @@ LIMIT 1
 	def decrement_order_count(self, link, tracking_no):
 		with self._driver.session() as session:
 			session.write_transaction(self._decrement_order, tracking_no, link)
-
-	def run_algo(self, order_data, static):
-		order_kwargs = {'from_label': 'CITY'}
-		total_result = []
-		for key in self.order_fields:
-			query_key = self.query_field_mapping.get(key, key)
-			order_kwargs[query_key] = order_data[key]
-		session = self._driver.session()
-		tx = session.begin_transaction()
-		result = {
-			'tracking_no': order_data.get('tracking_no'),
-			'price_factor': 0,
-			'time_factor': 0,
-			'conditions': None
-		}
-		path_result = self._find_path(tx, **order_kwargs)
-		path = path_result.pop('path')
-		if path:
-			result['path'] = self._format_path(path)
-			result.update(path_result)
-		else:
-			result['path'] = 'No path found'
-			return [result]
-
-		if static:
-			tx.rollback()
-			return [result]
-		else:
-			total_result.append(result)
-			current_node = path.nodes[1]
-			end_node = path.end_node
-
-			while current_node['name'] != end_node['name']:
-				order_kwargs['from_label'] = list(current_node.labels)[0]
-				order_kwargs['from_name'] = current_node['name']
-
-				result = {
-					'tracking_no': order_data.get('tracking_no'),
-					'price_factor': 0,
-					'time_factor': 0,
-					'conditions': None
-				}
-				path_result = self._find_path(tx, **order_kwargs)
-				path = path_result.pop('path')
-				if path:
-					result['path'] = self._format_path(path)
-					result.update(path_result)
-					total_result.append(result)
-					current_node = path.nodes[1]
-				else:
-					result['path'] = 'No path found'
-					total_result.append(result)
-					tx.rollback()
-					return total_result
-
-			tx.rollback()
-			return total_result
