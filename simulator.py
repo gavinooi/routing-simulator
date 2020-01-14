@@ -193,7 +193,18 @@ class Simulator:
 			g.add_edge(from_node['name'], to_node['name'], attr_dict=r._properties)
 
 		# find the path
-		path = find_path(g)
+		path,cost, links = find_path(g, kwargs)
+		print(links)
+		self.handler.increment_links(kwargs['tracking_no'], links)
+		result = {
+			'tracking_no': kwargs.get('tracking_no'),
+			'price_factor': 0,
+			'time_factor': 0,
+			'conditions': None,
+			'path': path,
+			'cost': cost
+		}
+
 
 		# add the arrive & leave events to the timeline
 		return {'some shit': 'this is the result'}
