@@ -3,6 +3,18 @@ import time
 
 from neo4j import GraphDatabase
 
+def format_link_data(link):
+	link_data = '{'
+	for key, val in link.items():
+		if key in ['startDate', 'endDate']:
+			link_data += f'{key}: datetime("{str(val)[:19]}"), '
+		elif key != 'order_count':
+			if isinstance(val, str):
+				link_data += f'{key}:"{val}", '
+			else:
+				link_data += f'{key}:{val}, '
+	return link_data[:-2] + '}'
+
 def time_and_rollback(func):
 
 	def wrapper_func(*args, **kwargs):
@@ -101,19 +113,25 @@ LIMIT 1
 		g = result.graph()
 		return g
 
-	def _increment_order(self, tx, tracking_no, link):
+	@staticmethod
+	def _decrement_order(tx, tracking_no, link):
 		from_node = link[0]
 		to_node = link[1]
-		link_data = '{'
-		for key,val in link[2].items():
-			if key in ['startDate', 'endDate']:
-				link_data += f'{key}: datetime("{str(val)[:19]}"), '
-			elif key != 'order_count':
-				if isinstance(val, str):
-					link_data += f'{key}:"{val}", '
-				else:
-					link_data += f'{key}:{val}, '
-		link_data = link_data[:-2] + '}'
+		link_data = format_link_data(link[2])
+
+		query = \
+			f'match (from:{from_node[1]}{{name:"{from_node[0]}"}}), (end:{to_node[1]}{{name:"{to_node[0]}"}})'\
+			f'\nmatch (start)-[rel:CONNECTED_TO{link_data}]->(end)'\
+			f'\nwith rel,FILTER(x IN rel.order_count WHERE x <> "{tracking_no}") as filteredList'\
+			f'\nset rel.order_count = filteredList'
+
+		tx.run(query)
+
+	@staticmethod
+	def _increment_order(tx, tracking_no, link):
+		from_node = link[0]
+		to_node = link[1]
+		link_data = format_link_data(link[2])
 
 		query = \
 			f'match (from:{from_node[1]}{{name:"{from_node[0]}"}}), (end:{to_node[1]}{{name:"{to_node[0]}"}})'\
@@ -163,6 +181,10 @@ LIMIT 1
 		with self._driver.session() as session:
 			for link in links:
 				session.write_transaction(self._increment_order, tracking_no, link)
+
+	def decrement_order_count(self, link, tracking_no):
+		with self._driver.session() as session:
+			session.write_transaction(self._decrement_order, tracking_no, link)
 
 	def run_algo(self, order_data, static):
 		order_kwargs = {'from_label': 'CITY'}

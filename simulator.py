@@ -199,9 +199,8 @@ class Simulator:
 		self.results.append(result)
 		for link in links:
 			kwargs = {
-				'from_node': link[0],
-				'to_node': link[1],
-				'links': link[2]
+				'link': link,
+				'tracking_no': tracking_no
 			}
 			from_node = link[0][0]
 			to_node = link[1][0]
@@ -237,7 +236,7 @@ class Simulator:
 	def decrement_order_count(self, **kwargs):
 		# remove order from a timed link
 		# happens when an order is picked up or when updating order counts
-		pass
+		self.handler.decrement_order_count(**kwargs)
 
 	def update_order_count(self, **kwargs):
 		# occurs when the order is first created, when it arrives at
