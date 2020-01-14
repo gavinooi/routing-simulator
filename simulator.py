@@ -66,7 +66,7 @@ class Simulator:
 				'link':row[2],
 				'node2':f'"{row[4]}"',
 				'node2_label':row[5],
-				'attr': row[3] + ', order_count:0'
+				'attr': row[3] + ', order_count: []'
 			}
 			links.append(attr)
 
@@ -172,6 +172,7 @@ class Simulator:
 
 	def create_order(self, **kwargs):
 		# load the sub graph
+		tracking_no = kwargs['tracking_no']
 		sub_graph = self.handler.filter_graph(kwargs)
 		g = nx.MultiDiGraph()
 		for r in sub_graph.relationships:
@@ -184,7 +185,7 @@ class Simulator:
 		# find the path
 		path, cost, links = find_path(g, kwargs)
 		result = {
-			'tracking_no': kwargs.get('tracking_no'),
+			'tracking_no': tracking_no,
 			'price_factor': 0,
 			'time_factor': 0,
 			'conditions': None,
@@ -192,13 +193,13 @@ class Simulator:
 			'cost': cost
 		}
 		for link in links:
-			kwags = {
-				'from_node': (list(link[0].items())),
-				'to_node': (list(link[1].items())),
+			kwargs = {
+				'from_node': link[0],
+				'to_node': link[1],
 				'links': link[2]
 			}
-			from_node = list(link[0].keys())[0]
-			to_node = list(link[1].keys())[0]
+			from_node = link[0][0]
+			to_node = link[1][0]
 			leave_time = link[2]['startDate']
 			leave_event = {
 				'datetime': leave_time,
@@ -223,12 +224,10 @@ class Simulator:
 			}
 			self.add_event(arrive_event)
 
-		return {'links': links, 'tracking_no': kwargs['tracking_no']}
+		return {'links': links, 'tracking_no': tracking_no}
 
 	def increment_order_count(self, **kwargs):
-		# add order to a timed link
-		# happens when a new path is generated (order creation, path continuation & updating order count)
-		print(f'increment order')
+		self.handler.increment_order_count(**kwargs)
 
 	def decrement_order_count(self, **kwargs):
 		# remove order from a timed link

@@ -92,7 +92,7 @@ def find_path(g, order_details):
 		link_id = table[current_node]['link_id']
 		link_data = g[prev_node][current_node][link_id]['attr_dict']
 		path.append(current_node)
-		links.append(({prev_node: table[prev_node]['label']}, {current_node: table[current_node]['label']}, link_data))
+		links.append(((prev_node, table[prev_node]['label']), (current_node, table[current_node]['label']), link_data))
 		current_node = prev_node
 
 	return path, table[end_node]['cost_to_start'], links

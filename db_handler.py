@@ -95,7 +95,8 @@ LIMIT 1
 	def _post_find_path(self):
 		pass
 
-	def _filter_graph(self, tx, order_details):
+	@staticmethod
+	def _filter_graph(tx, order_details):
 		query = \
 			f'MATCH path = (:COVERAGEAREA {{name: "{order_details["origin_zone"]}"}}) -[road:CONNECTED_TO*]'\
 			f'- (:COVERAGEAREA {{name: "{order_details["destination_zone"]}"}})'\
@@ -105,6 +106,29 @@ LIMIT 1
 		result = tx.run(query)
 		g = result.graph()
 		return g
+
+	def _increment_order(self, tx, tracking_no, link):
+		from_node = link[0]
+		to_node = link[1]
+		link_data = '{'
+		for key,val in link[2].items():
+			if key in ['startDate', 'endDate']:
+				link_data += f'{key}: datetime("{str(val)[:19]}"), '
+			elif key != 'order_count':
+				if isinstance(val, str):
+					link_data += f'{key}:"{val}", '
+				else:
+					link_data += f'{key}:{val}, '
+		link_data = link_data[:-2] + '}'
+
+		query = \
+			f'match (from:{from_node[1]}{{name:"{from_node[0]}"}}), (end:{to_node[1]}{{name:"{to_node[0]}"}})'\
+			f'\nmerge (start)-[rel:CONNECTED_TO{link_data}]->(end)'\
+			f'\non create set rel.order_count = ["{tracking_no}"]'\
+			f'\non match set rel.order_count = rel.order_count + "{tracking_no}"'
+
+		tx.run(query)
+
 
 	@time_and_rollback
 	def _find_path(self, tx, **kwargs):
@@ -140,6 +164,11 @@ LIMIT 1
 		with self._driver.session() as session:
 			res = session.write_transaction(self._filter_graph, order_details)
 			return res
+
+	def increment_order_count(self, tracking_no, links):
+		with self._driver.session() as session:
+			for link in links:
+				session.write_transaction(self._increment_order, tracking_no, link)
 
 	def run_algo(self, order_data, static):
 		order_kwargs = {'from_label': 'CITY'}
