@@ -89,12 +89,6 @@ LIMIT 1
 		final_query = match_query[:-1] + set_query[:-2]
 		tx.run(final_query)
 
-	def _pre_find_path(self):
-		pass
-
-	def _post_find_path(self):
-		pass
-
 	@staticmethod
 	def _filter_graph(tx, order_details):
 		query = \

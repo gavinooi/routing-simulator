@@ -84,16 +84,14 @@ def find_path(g, order_details):
 		start_time = table[current_node]['end_date']
 
 	current_node = end_node
-	path = []
 	links = []
 
 	while current_node != start_node:
 		prev_node = table[current_node]['prev_node']
 		link_id = table[current_node]['link_id']
 		link_data = g[prev_node][current_node][link_id]['attr_dict']
-		path.append(current_node)
 		links.append(((prev_node, table[prev_node]['label']), (current_node, table[current_node]['label']), link_data))
 		current_node = prev_node
 
-	return path, table[end_node]['cost_to_start'], links
+	return links, table[end_node]['cost_to_start']
 

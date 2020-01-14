@@ -183,7 +183,11 @@ class Simulator:
 			g.add_edge(from_node['name'], to_node['name'], attr_dict=r._properties)
 
 		# find the path
-		path, cost, links = find_path(g, kwargs)
+		links, cost = find_path(g, kwargs)
+		path = f'({links[0][1][0]})'
+		for link in links:
+			path = f'({link[0][0]}) > [{link[2]["via"]}] > ' + path
+
 		result = {
 			'tracking_no': tracking_no,
 			'price_factor': 0,
@@ -192,6 +196,7 @@ class Simulator:
 			'path': path,
 			'cost': cost
 		}
+		self.results.append(result)
 		for link in links:
 			kwargs = {
 				'from_node': link[0],
@@ -251,6 +256,6 @@ class Simulator:
 
 		self.run_timeline()
 
-		# self._output_result()
+		self._output_result()
 		self._finish()
 		print('\nSIMULATION FINISHED')
