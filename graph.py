@@ -30,8 +30,7 @@ def find_path(g, order_details, cost_factor):
 	opened = []
 	closed = []
 
-	created_on = order_details['created_on'][:-3] + order_details['created_on'][-2:]
-	start_time = datetime.strptime(created_on, '%Y-%m-%dT%H:%M:%S.%f%z')
+	start_time = order_details['created_on']
 	end_node = order_details['destination_zone']
 	start_node = order_details['origin_zone']
 	current_node = start_node

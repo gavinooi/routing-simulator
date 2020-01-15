@@ -128,7 +128,8 @@ class Simulator:
 	def add_create_order_event(self, order):
 		# add the create order event into the timeline
 		tracking_no = order['tracking_no']
-		created_on = order['created_on']
+		created_datetime = order['created_on'][:-3] + order['created_on'][-2:]
+		created_on = datetime.strptime(created_datetime, '%Y-%m-%dT%H:%M:%S.%f%z')
 		origin = order['origin_zone']
 		destination = order['destination_zone']
 		kwargs = {
