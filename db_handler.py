@@ -6,7 +6,7 @@ from neo4j import GraphDatabase
 def format_link_data(link):
 	link_data = '{'
 	for key, val in link.items():
-		if key in ['startDate', 'endDate']:
+		if key in ['startDate', 'endDate', 'cutOffTime'] and val not in ['', 0, '0']:
 			link_data += f'{key}: datetime("{str(val)[:19]}"), '
 		elif key != 'order_count':
 			if isinstance(val, str):
@@ -40,15 +40,6 @@ class DBHandler:
 		'consignee_city': 'to_name',
 		'pickup_city': 'from_name'
 	}
-
-	algo = \
-"""MATCH (from:from_label {name:$from_name}), (to:CITY {name:$to_name}) ,
-path = (from)-[:CONNECTED_TO*]->(to)
-WITH REDUCE(dist = 0, rel in rels(path) | dist + rel.cost) AS cost, path
-RETURN path, cost
-ORDER BY cost
-LIMIT 1
-"""
 
 	def __init__(self):
 		self._driver = GraphDatabase.driver(self.uri, auth=self.credentials)
@@ -102,9 +93,9 @@ LIMIT 1
 	def _filter_graph(tx, order_details):
 		query = \
 			f'MATCH path = (:COVERAGEAREA {{name: "{order_details["origin_zone"]}"}}) -[road:CONNECTED_TO*]'\
-			f'- (:COVERAGEAREA {{name: "{order_details["destination_zone"]}"}})'\
-			f'WHERE ALL (r IN road WHERE r.paymentType = "{order_details["payment_type"]}" and not "{order_details["agent_app"]}" in r.restrictedMerchants)'\
-			'RETURN path'
+			f'-> (:COVERAGEAREA {{name: "{order_details["destination_zone"]}"}})'\
+			f'\nwhere Any (r IN road WHERE r.paymentType in ["Both", "{order_details["payment_type"]}"] and not "{order_details["agent_app"]}" in r.restrictedMerchants)'\
+			'\nRETURN path'
 
 		result = tx.run(query)
 		if not result.data():
@@ -132,7 +123,6 @@ LIMIT 1
 		from_node = link[0]
 		to_node = link[1]
 		link_data = format_link_data(link[2])
-
 		query = \
 			f'match (from:{from_node[1]}{{name:"{from_node[0]}"}}), (end:{to_node[1]}{{name:"{to_node[0]}"}})'\
 			f'\nmerge (start)-[rel:CONNECTED_TO{link_data}]->(end)'\

@@ -199,7 +199,7 @@ class Simulator:
 		links, cost = find_path(g, kwargs)
 		path = f'({links[0][1][0]})'
 		for link in links:
-			path = f'({link[0][0]}) > [{link[2]["via"]}] > ' + path
+			path = f'({link[0][0]}) > [{link[2]["operatedBy"]}] > ' + path
 
 		self.results.append(
 			{
