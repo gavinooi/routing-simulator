@@ -16,7 +16,7 @@ class Simulator:
 	all_orders = {}
 
 	def __init__(self, graph_file, orders_file, output_file, cost_factor='time', algo='STATIC', clear_graph=True):
-		self.static = algo == 'STATIC'
+		self.dynamic = algo != 'STATIC'
 		self.output_file = output_file
 		print(
 			'###############################\n'
@@ -111,6 +111,23 @@ class Simulator:
 					sheet.merge_cells(f'{v[0]}:{v[-1]}')
 			workbook.save(self.output_file)
 
+	def _delay_arrival(self, initial_arrival):
+		return initial_arrival
+
+	def _get_actions(self, event_type):
+		action_mapping = {
+			'create': [self.create_order, self.increment_order_count],
+			'arrive': [],
+			'leave': [self.decrement_order_count],
+			'expire': [self.expire_link],
+			'deliver': [self.order_delivered]
+		}
+
+		if self.dynamic and event_type == 'arrive':
+			return [self.insert_noise, self.reach_node]
+		else:
+			return action_mapping[event_type]
+
 	### TIMELINE ###
 
 	def add_event(self, new_event):
@@ -152,9 +169,8 @@ class Simulator:
 		}
 		event = {
 			'datetime': created_on,
-			'event_type': 'create',
 			'desc': f'Create order: {tracking_no}, {origin} --> {destination}',
-			'actions': [self.create_order, self.increment_order_count],
+			'actions': self._get_actions('create'),
 			'kwargs': kwargs
 		}
 
@@ -177,8 +193,8 @@ class Simulator:
 
 	### ACTIONS ###
 
-	def insert_noise(self):
-		pass
+	def insert_noise(self, **kwargs):
+		return kwargs
 
 	def expire_link(self, **kwargs):
 
@@ -246,42 +262,37 @@ class Simulator:
 				self.add_event(
 					{
 						'datetime': link[2]['endDate'],
-						'event_type': 'delivered',
 						'desc': f'Order {tracking_no} delivered to {to_node}',
-						'actions': [self.order_delivered],
+						'actions': self._get_actions('deliver'),
 						'kwargs': kwargs
 					}
 				)
 
 			leave_event = {
 				'datetime': leave_time,
-				'event_type': 'leave',
 				'desc': f'Leave node: {from_node}',
-				'actions': [self.decrement_order_count],
+				'actions': self._get_actions('leave'),
 				'kwargs': kwargs
 			}
 			self.add_event(leave_event)
 
 			self.add_event(
 				{
-				'datetime': leave_time + timedelta(minutes=30),
-				'event_type': 'expire',
-				'desc': f'Expire link: ({from_node}) -> ({to_node}) at {str(leave_time)}',
-				'actions': [self.expire_link],
-				'kwargs': kwargs
+					'datetime': leave_time + timedelta(minutes=30),
+					'desc': f'Expire link: ({from_node}) -> ({to_node}) at {str(leave_time)}',
+					'actions': self._get_actions('expire'),
+					'kwargs': kwargs
 				}
 			)
 
 			arrive_time = link[2]['endDate']
-			if self.static:
-				actions = [self.insert_noise, self.reach_node, self.increment_order_count]
-			else: # if is static nothing happens when the order reaches the node
-				actions = []
+			if self.dynamic:
+				arrive_time = self._delay_arrival(arrive_time)
+
 			arrive_event = {
 				'datetime': arrive_time,
-				'event_type': 'arrive',
 				'desc': f'Arrive node: {to_node}',
-				'actions': actions,
+				'actions': self._get_actions('arrive'),
 				'kwargs': kwargs
 			}
 			self.add_event(arrive_event)
@@ -295,10 +306,6 @@ class Simulator:
 		# remove order from a timed link
 		# happens when an order is picked up or when updating order counts
 		self.handler.decrement_order_count(**kwargs)
-
-	def update_order_count(self, **kwargs):
-		# occurs when the order is first created, when it arrives at
-		pass
 
 	def reach_node(self, **kwargs):
 		# find the next n+2 path if it is janio or not
