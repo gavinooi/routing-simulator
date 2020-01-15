@@ -61,15 +61,26 @@ class Simulator:
 			nodes.append(attr)
 
 		for row in link_sheet.iter_rows(min_row=2, values_only=True):
-			attr= {
-				'node1':f'"{row[0]}"',
-				'node1_label':row[1],
-				'link':row[2],
-				'node2':f'"{row[4]}"',
-				'node2_label':row[5],
-				'attr': row[3] + ', order_count: []'
-			}
-			links.append(attr)
+			start = re.search("startDate:datetime\((.*?)\),endDate", row[3].replace(' ', '')).group(1)[1:-1]
+			end = re.search("endDate:datetime\((.*?)\),", row[3].replace(' ', '')).group(1)[1:-1]
+			for i in range(1):
+				start_date = datetime.strptime(start, '%Y-%m-%dT%H:%M') + timedelta(days=i)
+				end_date = datetime.strptime(end, '%Y-%m-%dT%H:%M') + timedelta(days=i)
+				start_str = start_date.strftime('%Y-%m-%dT%H:%M')
+				end_str = end_date.strftime('%Y-%m-%dT%H:%M')
+				new = re.sub("startDate:datetime\((.*?)\),endDate", f"startDate:datetime('{start_str}'),endDate",
+										 row[3].replace(' ', ''))
+				new = re.sub("endDate:datetime\((.*?)\),", f"endDate:datetime('{end_str}'),", new.replace(' ', ''))
+
+				attr = {
+					'node1': f'"{row[0]}"',
+					'node1_label': row[1],
+					'link': row[2],
+					'node2': f'"{row[4]}"',
+					'node2_label': row[5],
+					'attr': new + ', order_count: []'
+				}
+				links.append(attr)
 
 		self.handler.build_graph(nodes, links, clear_graph)
 

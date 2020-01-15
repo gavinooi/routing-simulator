@@ -92,7 +92,7 @@ class DBHandler:
 	@staticmethod
 	def _filter_graph(tx, order_details):
 		query = \
-			f'MATCH path = (:COVERAGEAREA {{name: "{order_details["origin_zone"]}"}}) -[road:CONNECTED_TO*]'\
+			f'MATCH path = (:COVERAGEAREA {{name: "{order_details["origin_zone"]}"}}) -[road:CONNECTED_TO*..15]'\
 			f'-> (:COVERAGEAREA {{name: "{order_details["destination_zone"]}"}})'\
 			f'\nwhere Any (r IN road WHERE r.paymentType in ["Both", "{order_details["payment_type"]}"] and not "{order_details["agent_app"]}" in r.restrictedMerchants)'\
 			'\nRETURN path'
