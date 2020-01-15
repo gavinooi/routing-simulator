@@ -1,7 +1,8 @@
 from datetime import datetime
 
 def calculate_financial_cost(link_data):
-	return 0
+	# return (len(link_data['order_count']) + 1) * link_data['cost']
+	return link_data['cost']
 
 def calculate_time_cost(link_data):
 	diff = link_data['endDate'] - link_data['startDate']
