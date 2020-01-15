@@ -182,7 +182,7 @@ class Simulator:
 					'tracking_no': tracking_no,
 					'cost_factor': None,
 					'conditions': None,
-					'path': 'No path found.',
+					'path': f'No path found: {kwargs["origin_zone"]} - {kwargs["destination_zone"]}.',
 					'cost': 0
 				}
 			)
