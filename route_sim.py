@@ -13,14 +13,19 @@ args = parser.parse_args()
 
 graph_file = args.graph
 order_file = args.order
-optional_args = {'output_file': 'output.xlsx'}
+optional_args = {'output_file': 'output.xlsx', 'cost_factor': 'time'}
+config_mapping = {
+	'd': ('algo', 'DYNAMIC'),
+	'k': ('clear_graph', False),
+	'p': ('cost_factor', 'cost')
+}
 if args.output:
 	optional_args['output_file'] = f'{args.output}.xlsx'
 configs = args.config if args.config else ''
-if 'd' in configs:
-	optional_args['algo'] = 'DYNAMIC'
-if 'k' in configs:
-	optional_args['clear_graph'] = False
+for k in config_mapping.keys():
+	if k in configs:
+		config = config_mapping[k]
+		optional_args[config[0]] = config[1]
 
 sim = Simulator(graph_file, order_file, **optional_args)
 sim.run_simulation()

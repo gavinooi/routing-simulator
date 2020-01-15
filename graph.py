@@ -25,7 +25,7 @@ def find_cost(start_date, links, cost_factor):
 def find_heuristic_cost():
 	return 0
 
-def find_path(g, order_details):
+def find_path(g, order_details, cost_factor):
 	opened = []
 	closed = []
 
@@ -54,7 +54,7 @@ def find_path(g, order_details):
 			# push node to opened list
 			if nbr not in opened and nbr not in closed:
 				opened.append(nbr)
-				cost, link_id = find_cost(start_time, links, 'time')
+				cost, link_id = find_cost(start_time, links, cost_factor)
 				h = find_heuristic_cost()
 				if current_node != start_node:
 					cost_to_start = table[current_node]['cost_to_start'] + cost

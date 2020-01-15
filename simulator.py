@@ -14,7 +14,7 @@ class Simulator:
 	results = []
 	timeline = []
 
-	def __init__(self, graph_file, orders_file, output_file, algo='STATIC', clear_graph=True):
+	def __init__(self, graph_file, orders_file, output_file, cost_factor='time', algo='STATIC', clear_graph=True):
 		self.static = algo == 'STATIC'
 		self.output_file = output_file
 		print(
@@ -24,7 +24,8 @@ class Simulator:
 			f'\nCONFIGURATIONS:\nGraph File:  {graph_file}\nOrder File:  {orders_file}.csv\nOutput File: {self.output_file}\n'
 			f'\nADDITIONAL CONFIGURATIONS\nAlgo: {algo}\nClear graph: {clear_graph}'
 		)
-		self.sheet_name = datetime.now().strftime("%d-%m T%H-%M-%S")
+		self.cost_factor = cost_factor
+		self.sheet_name = datetime.now().strftime("%d-%m T%H-%M-%S") + f'({cost_factor})'
 		self.handler = DBHandler()
 		self.orders = self._load_orders(orders_file)
 		self._build_graph(graph_file, clear_graph)
@@ -178,8 +179,7 @@ class Simulator:
 			self.results.append(
 				{
 					'tracking_no': tracking_no,
-					'price_factor': 0,
-					'time_factor': 0,
+					'cost_factor': None,
 					'conditions': None,
 					'path': 'No path found.',
 					'cost': 0
@@ -196,7 +196,7 @@ class Simulator:
 			g.add_edge(from_node['name'], to_node['name'], attr_dict=r._properties)
 
 		# find the path
-		links, cost = find_path(g, kwargs)
+		links, cost = find_path(g, kwargs, self.cost_factor)
 		path = f'({links[0][1][0]})'
 		for link in links:
 			path = f'({link[0][0]}) > [{link[2]["operatedBy"]}] > ' + path
@@ -204,8 +204,7 @@ class Simulator:
 		self.results.append(
 			{
 				'tracking_no': tracking_no,
-				'price_factor': 0,
-				'time_factor': 0,
+				'cost_factor': self.cost_factor,
 				'conditions': None,
 				'path': path,
 				'cost': cost
