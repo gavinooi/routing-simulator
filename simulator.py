@@ -13,6 +13,7 @@ class Simulator:
 
 	results = []
 	timeline = []
+	all_orders = {}
 
 	def __init__(self, graph_file, orders_file, output_file, cost_factor='time', algo='STATIC', clear_graph=True):
 		self.static = algo == 'STATIC'
@@ -166,8 +167,9 @@ class Simulator:
 		runs the pre, during & post stage methods, logs event to the timeline
 		:return:
 		'''
-		print(f'\nRun event: {event["desc"]}\n{str(event["datetime"])}')
+
 		kwargs = event['kwargs']
+		print(f'\nRun event: {kwargs["tracking_no"]}\n{event["desc"]}\n{str(event["datetime"])}')
 		for action in event['actions']:
 			kwargs = action(**kwargs)
 
@@ -210,9 +212,19 @@ class Simulator:
 
 		# find the path
 		links, cost = find_path(g, kwargs, self.cost_factor)
-		path = f'({links[0][1][0]})'
-		for link in links:
+		end_node = links[0][1][0]
+		path = f'({end_node})'
+		order_path = {
+			end_node: {'next': None, 'prev': links[0][0][0]}
+		}
+		for i, link in enumerate(links):
 			path = f'({link[0][0]}) > [{link[2]["operatedBy"]}] > ' + path
+			if i+1 == len(links):
+				order_path[link[0][0]] = {'next': link[1][0], 'prev': None}
+			else:
+				order_path[link[0][0]] = {'next': link[1][0], 'prev': links[i+1][0][0]}
+
+		self.all_orders.update({tracking_no: order_path})
 
 		self.results.append(
 			{
@@ -231,7 +243,18 @@ class Simulator:
 			from_node = link[0][0]
 			to_node = link[1][0]
 			leave_time = link[2]['startDate']
-			print(leave_time + timedelta(minutes=30))
+
+			if to_node == end_node:
+				self.add_event(
+					{
+						'datetime': link[2]['endDate'],
+						'event_type': 'delivered',
+						'desc': f'Order {tracking_no} delivered to {to_node}',
+						'actions': [self.order_delivered],
+						'kwargs': kwargs
+					}
+				)
+
 			leave_event = {
 				'datetime': leave_time,
 				'event_type': 'leave',
@@ -283,6 +306,9 @@ class Simulator:
 		# find the next n+2 path if it is janio or not
 		# reroute if thr is a cancellation api
 		pass
+
+	def order_delivered(self, **kwargs):
+		self.all_orders.pop(kwargs['tracking_no'])
 
 	def run_simulation(self):
 		print('\nBUILDING TIMELINE')
