@@ -131,6 +131,17 @@ class DBHandler:
 
 		tx.run(query)
 
+	@staticmethod
+	def _expire_link(tx, link):
+		from_node = link[0]
+		to_node = link[1]
+		link_data = format_link_data(link[2])
+		query = \
+			f"match (start:{from_node[1]}{{name:'{from_node[0]}'}})-[rel:CONNECTED_TO{link_data}]->(end:{to_node[1]}{{name:'{to_node[0]}'}})"\
+			f"set rel.startDate=rel.startDate+ duration('P1D'), rel.endDate = rel.endDate + duration('P1D')"
+
+		tx.run(query)
+
 	### PUBLIC METHODS ###
 
 	def build_graph(self, nodes, links, clear_graph):
@@ -153,3 +164,7 @@ class DBHandler:
 	def decrement_order_count(self, link, tracking_no):
 		with self._driver.session() as session:
 			session.write_transaction(self._decrement_order, tracking_no, link)
+
+	def expire_link(self, link):
+		with self._driver.session() as session:
+			session.write_transaction(self._expire_link, link)

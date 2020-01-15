@@ -180,8 +180,9 @@ class Simulator:
 	def insert_noise(self):
 		pass
 
-	def expire_link(self):
-		pass
+	def expire_link(self, **kwargs):
+
+		self.handler.expire_link(kwargs['link'])
 
 	def create_order(self, **kwargs):
 		# load the sub graph
@@ -230,6 +231,7 @@ class Simulator:
 			from_node = link[0][0]
 			to_node = link[1][0]
 			leave_time = link[2]['startDate']
+			print(leave_time + timedelta(minutes=30))
 			leave_event = {
 				'datetime': leave_time,
 				'event_type': 'leave',
@@ -238,6 +240,16 @@ class Simulator:
 				'kwargs': kwargs
 			}
 			self.add_event(leave_event)
+
+			self.add_event(
+				{
+				'datetime': leave_time + timedelta(minutes=30),
+				'event_type': 'expire',
+				'desc': f'Expire link: ({from_node}) -> ({to_node}) at {str(leave_time)}',
+				'actions': [self.expire_link],
+				'kwargs': kwargs
+				}
+			)
 
 			arrive_time = link[2]['endDate']
 			if self.static:
