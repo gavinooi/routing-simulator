@@ -128,14 +128,12 @@ class Simulator:
 		if len(self.timeline) == 0:
 			self.timeline.append(new_event)
 		else:
-			i = next(
-				(i for i,event in enumerate(self.timeline) if new_event['datetime'] <= event['datetime']),
-				False
-			)
-			if i:
-				self.timeline.insert(i, new_event)
-			else:
-				self.timeline.insert(0, new_event)
+			for i,event in enumerate(self.timeline):
+				if new_event['datetime'] <= event['datetime']:
+					self.timeline.insert(i, new_event)
+					return 0
+
+			self.timeline.append(new_event)
 
 	def add_create_order_event(self, order):
 		# add the create order event into the timeline
