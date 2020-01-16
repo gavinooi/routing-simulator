@@ -1,4 +1,5 @@
 import csv
+import random
 from datetime import datetime, timedelta
 import re
 
@@ -95,7 +96,8 @@ class Simulator:
 			sheet.title = self.sheet_name
 		finally:
 			sheet.append(list(self.results[0].keys()))
-			for result in self.results:
+			results_sorted = sorted(self.results, key=lambda i: i['tracking_no'])
+			for result in results_sorted:
 				sheet.append(list(result.values()))
 
 			orders = {}
@@ -112,7 +114,18 @@ class Simulator:
 			workbook.save(self.output_file)
 
 	def _delay_arrival(self, initial_arrival):
-		return initial_arrival
+		delay_weights = {
+			0: 50,
+			0.5: 20,
+			1: 15,
+			3: 10,
+			5: 5
+		}
+		ls = []
+		for delay, prob in delay_weights.items():
+			ls += [delay] * prob
+		delay = random.choice(ls)
+		return initial_arrival + timedelta(hours=delay), delay
 
 	def _get_actions(self, event_type):
 		action_mapping = {
@@ -227,18 +240,17 @@ class Simulator:
 		# find the path
 		links, cost = find_path(g, kwargs, self.cost_factor)
 		end_node = links[0][1][0]
-		path = f'({end_node})'
 		order_path = {
-			end_node: {'next': None, 'prev': links[0][0][0]}
+			'graph': g,
+			'links': links,
+			'payment_type': kwargs['payment_type'],
+			'agent_app': kwargs['agent_app']
 		}
-		for i, link in enumerate(links):
-			path = f'({link[0][0]}) > [{link[2]["operatedBy"]}] > ' + path
-			if i+1 == len(links):
-				order_path[link[0][0]] = {'next': link[1][0], 'prev': None}
-			else:
-				order_path[link[0][0]] = {'next': link[1][0], 'prev': links[i+1][0][0]}
-
 		self.all_orders.update({tracking_no: order_path})
+
+		path = f'({end_node})'
+		for link in links:
+			path = f'({link[0][0]}) > [{link[2]["operatedBy"]}] > ' + path
 
 		self.results.append(
 			{
@@ -258,16 +270,6 @@ class Simulator:
 			to_node = link[1][0]
 			leave_time = link[2]['startDate']
 
-			if to_node == end_node:
-				self.add_event(
-					{
-						'datetime': link[2]['endDate'],
-						'desc': f'Order {tracking_no} delivered to {to_node}',
-						'actions': self._get_actions('deliver'),
-						'kwargs': kwargs
-					}
-				)
-
 			leave_event = {
 				'datetime': leave_time,
 				'desc': f'Leave node: {from_node}',
@@ -286,15 +288,32 @@ class Simulator:
 			)
 
 			arrive_time = link[2]['endDate']
-			if self.dynamic:
-				arrive_time = self._delay_arrival(arrive_time)
+			delay = 0
 
+			if self.dynamic:
+				arrive_time, delay = self._delay_arrival(arrive_time)
+
+			arrive_kwargs = {
+				'tracking_no': kwargs['tracking_no'],
+				'link': kwargs['link'],
+				'delay': delay,
+				'arrive_time': arrive_time,
+			}
 			arrive_event = {
 				'datetime': arrive_time,
 				'desc': f'Arrive node: {to_node}',
 				'actions': self._get_actions('arrive'),
-				'kwargs': kwargs
+				'kwargs': arrive_kwargs
 			}
+			if to_node == end_node:
+				self.add_event(
+					{
+						'datetime': arrive_time,
+						'desc': f'Order {tracking_no} delivered to {to_node}',
+						'actions': self._get_actions('deliver'),
+						'kwargs': kwargs
+					}
+				)
 			self.add_event(arrive_event)
 
 		return {'links': links, 'tracking_no': tracking_no}
@@ -308,9 +327,63 @@ class Simulator:
 		self.handler.decrement_order_count(**kwargs)
 
 	def reach_node(self, **kwargs):
-		# find the next n+2 path if it is janio or not
-		# reroute if thr is a cancellation api
-		pass
+		tracking_no = kwargs['tracking_no']
+		orders_dict = self.all_orders[tracking_no]
+		current_node = kwargs['link'][1][0]
+		end_node = orders_dict['links'][0][1][0]
+
+		current_dict = orders_dict['graph'].nodes[current_node]
+		if current_dict.get('hub_type') and current_dict['hub_type'] == 'JANIO':
+			start_node = current_node
+		else:
+			start_node = next((link[1][0] for link in orders_dict['links'] if link[0][0] == current_node), end_node)
+
+		if start_node == end_node:
+			return {'links': [], 'tracking_no': tracking_no}
+
+		order_details = {
+			'start_label': 'WAREHOUSE',
+			'origin_zone': start_node,
+			'destination_zone': end_node,
+			'payment_type': orders_dict['payment_type'],
+			'agent_app': orders_dict['agent_app'],
+			'created_on': kwargs['arrive_time']
+		}
+		sub_graph = self.handler.filter_graph(order_details)
+		if not sub_graph:
+			self.results.append(
+				{
+					'tracking_no': tracking_no,
+					'cost_factor': None,
+					'conditions': None,
+					'path': f'No path found: {order_details["origin_zone"]} - {order_details["destination_zone"]}.',
+					'cost': 0
+				}
+			)
+			return {'links': [], 'tracking_no': tracking_no}
+
+		g = nx.MultiDiGraph()
+		for r in sub_graph.relationships:
+			from_node = r.nodes[0]
+			g.add_node(from_node['name'], label=list(from_node.labels)[0], **from_node._properties)
+			to_node = r.nodes[1]
+			g.add_node(to_node['name'], label=list(to_node.labels)[0], **to_node._properties)
+			g.add_edge(from_node['name'], to_node['name'], attr_dict=r._properties)
+
+		# find the path
+		links, cost = find_path(g, order_details, self.cost_factor)
+		path = f'({end_node})'
+		for link in links:
+			path = f'({link[0][0]}) > [{link[2]["operatedBy"]}] > ' + path
+		self.results.append(
+			{
+				'tracking_no': tracking_no,
+				'cost_factor': self.cost_factor,
+				'conditions': f'Delay by {kwargs["delay"]}hrs',
+				'path': path,
+				'cost': cost
+			}
+		)
 
 	def order_delivered(self, **kwargs):
 		self.all_orders.pop(kwargs['tracking_no'])
