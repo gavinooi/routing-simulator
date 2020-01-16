@@ -4,8 +4,8 @@ def calculate_financial_cost(link_data):
 	# return (len(link_data['order_count']) + 1) * link_data['cost']
 	return link_data['cost']
 
-def calculate_time_cost(link_data):
-	diff = link_data['endDate'] - link_data['startDate']
+def calculate_time_cost(link_data, start_date):
+	diff = link_data['endDate'] - start_date
 	cost = (diff.days * 24) + (diff.seconds/3600)
 
 	return cost
@@ -19,7 +19,7 @@ def find_cost(start_date, links, cost_factor):
 	if cost_factor == 'cost':
 		cost = calculate_financial_cost(link_data)
 	else:
-		cost = calculate_time_cost(link_data)
+		cost = calculate_time_cost(link_data, start_date)
 
 	return cost, link_id
 
